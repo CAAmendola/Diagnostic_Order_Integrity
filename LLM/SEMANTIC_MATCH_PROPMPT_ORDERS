@@ -1,116 +1,69 @@
-Role: You are performing an administrative order-fulfillment review.
+Role: Administrative order-fulfillment review (non-clinical).
 
-Your task is to determine whether a medical diagnostic result description appears to fulfill a medical diagnostic order description based solely on the semantic meaning of the text provided.
+Task: Determine if a **result fulfills an order** based on semantic match only.  
+Do not perform diagnosis, treatment review, or clinical interpretation.
 
-This is an operational matching task, not a clinical task.
+Evaluate Using
+* Procedure/test identity
+* Modality (CT, MRI, lab, etc.)
+* Analytes measured
+* Anatomy
+* Specimen type
+* Panel vs subset relationship
+* Synonyms/abbreviations
 
-Do NOT perform:
+Do NOT match based on: same disease, organ, purpose, or co-order patterns.  
+If unsure → choose conservative classification.
 
-Clinical diagnosis
-Treatment recommendations
-Medical necessity review
-Utilization management
-Quality of care assessment
-Clinical interpretation of findings
-Your objective is only to assess whether the result appears to correspond to the ordered diagnostic procedure.
+Categories
 
-Evaluation Principles: Evaluate semantic correspondence between the ordered procedure and the reported result.
+EXACT – Same test (incl. standard abbreviations)
+* CBC ↔ Complete Blood Count
+* Confidence: ≥0.95
 
-Consider:
+EQUIVALENT – Same test, different phrasing
+* CT Abd/Pelvis w/ contrast ↔ CT Abdomen & Pelvis IV contrast
+* Confidence: 0.85–0.95
 
-Diagnostic procedure identity
-Laboratory analytes measured
-Imaging modality
-Anatomical target
-Specimen type
-Panel versus component relationships
-Common medical abbreviations and synonyms
-Alternate naming conventions for the same procedure
-Do not assume equivalence based solely on:
+PARTIAL – Result is a subset/component of order
+* Lipid Panel → LDL
+* Rule: must be a clear subset
 
-Similar disease areas
-Similar clinical purpose
-Similar organs
-Similar specialties
-Common co-ordering patterns
-If evidence is insufficient, choose INSUFFICIENT_INFORMATION. If uncertainty exists, prefer the more conservative classification.
+RELATED – Clinically related, not same test
+* CT Abdomen ↔ MRI Abdomen
+* Liver US ↔ Hepatic panel
 
-Classification Definitions:
+UNRELATED – Different procedures
+* Colonoscopy ↔ Chest X-ray
 
-EXACT The order and result clearly describe the same diagnostic procedure.
+INSUFFICIENT_INFORMATION – Not enough detail
+* “Lab test” ↔ “Normal”
+* Confidence: ≤0.70
 
-Examples:
+Fulfillment Rule
 
-CBC ↔ Complete Blood Count
-FOBT ↔ Fecal Occult Blood Test
-EQUIVALENT The wording differs but the descriptions appear to represent the same diagnostic procedure.
+`fulfillment_match = TRUE` only if:
 
-Examples:
+* EXACT or EQUIVALENT  
+  Otherwise FALSE
 
-CT Abdomen/Pelvis with Contrast
-CT Abdomen and Pelvis with IV Contrast
-PARTIAL The result appears to contain only a component, subset, or incomplete portion of the ordered procedure.
+Confidence
 
-Examples:
+0.95–1.00 certain | 0.85–0.94 strong | 0.70–0.84 moderate | 0.50–0.69 weak | <0.50 very uncertain
 
-Order: Lipid Panel
-Result: LDL Cholesterol
-Examples:
+Output Strict JSON:
+{
+  "match_category": "EXACT|EQUIVALENT|PARTIAL|RELATED|UNRELATED|INSUFFICIENT_INFORMATION",
+  "confidence": 0.00,
+  "fulfillment_match": true,
+  "rationale": "Short explanation",
+  "evidence": [
+    "Key observation",
+    "Key observation"
+  ],
+  "review_recommended": true
+}
 
-Order: Hepatic Function Panel
-Result: AST and ALT
-RELATED The order and result are medically related but do not appear to represent fulfillment of the same ordered procedure.
-
-Examples:
-
-Order: Liver Ultrasound
-Result: Hepatic Function Panel
-Examples:
-
-Order: CT Abdomen
-Result: MRI Abdomen
-UNRELATED The order and result appear to represent different diagnostic procedures with no meaningful fulfillment relationship.
-
-Examples:
-
-Order: Colonoscopy
-Result: Chest X-Ray
-INSUFFICIENT_INFORMATION The descriptions lack sufficient information to determine whether fulfillment occurred.
-
-Confidence Scoring: Assign a confidence value between 0.00 and 1.00.
-
-Guidance:
-
-0.95–1.00 = Virtually certain
-0.85–0.94 = Strong evidence
-0.70–0.84 = Moderate evidence
-0.50–0.69 = Weak evidence
-Below 0.50 = Highly uncertain
-Confidence should reflect certainty of classification, not clinical significance.
-
-Required Output: Return only valid JSON. Do not return markdown. Do not return explanatory text outside the JSON object.
-
-Use the following schema exactly: {
-"match_category": "EXACT|EQUIVALENT|PARTIAL|RELATED|UNRELATED|INSUFFICIENT_INFORMATION",
-"confidence": 0.00,
-"fulfillment_match": true,
-"rationale": "Brief explanation of the semantic relationship.",
-"evidence": [
-"Key observation 1",
-"Key observation 2"
-] , "review_recommended": true|false }
-
-Fulfillment Match Rules: Set fulfillment_match to TRUE only when:
-
-match_category = EXACT
-match_category = EQUIVALENT
-Set fulfillment_match to FALSE for:
-
-PARTIAL
-RELATED
-UNRELATED
-INSUFFICIENT_INFORMATION
-
-Input: 
-Order Description:{{ORDER_DESCRIPTIVE}}
-Result Description:{{RESULT_DESCRIPTIVE}}
+Input:
+Order: {ORDER_DESCRIPTIVE}  
+Result: {RESULT_DESCRIPTIVE}
